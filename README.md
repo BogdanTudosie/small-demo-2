@@ -1,17 +1,16 @@
 # Inventory Microservice PoC
 
-This is a Proof-of-Concept (PoC) microservice system for fetching and storing device inventory via a mock MDM client.
-It demonstrates Spring Boot microservices, shared DTOs, in-memory storage, and REST endpoints.
+This Proof-of-Concept (PoC) demonstrates a microservice system for fetching and storing device inventory via a mock MDM client, using Spring Boot and shared DTOs.
 
 ---
 
 ## Project Structure
 
 ```
-inventory-poc/
- ├─ mdm-client-service/      # Mock MDM client microservice
- ├─ inventory-service/       # Inventory microservice
- ├─ shared-dto/              # Shared DTO library for both services
+small-demo-2/
+ ├─ src/main/java/com/bogdan/small_demo_2/mdm_service/    # Mock MDM client service
+ ├─ src/main/java/com/bogdan/small_demo_2/inventoryservice/ # Inventory service and endpoints
+ ├─ src/main/java/com/bogdan/small_demo_2/shared_dto/     # Shared DTOs (InventoryDto, DeviceDto, AppDto)
  └─ README.md
 ```
 
@@ -21,18 +20,18 @@ inventory-poc/
 
 ### MDM Client Service
 
-* Single endpoint: `/mdm-client/fetch-apps?uuid=DEVICE_UUID`
-* Returns mock inventory data for a device
-* Designed to simulate external MDM API calls
+* Endpoint: `/mdm-client/fetch-apps?deviceId=DEVICE_UUID`
+* Returns mock inventory data per device
+* Simulates external MDM API calls
 
 ### Inventory Service
 
-* Stores inventory in memory (`ConcurrentHashMap`)
+* Stores inventory in memory using `ConcurrentHashMap`
 * Endpoints:
 
   * `POST /inventory/fetch?deviceId=DEVICE_UUID` → fetch inventory from MDM Client and store it
-  * `GET /inventory?deviceId=DEVICE_UUID` → retrieve stored inventory for a device
-  * `GET /inventory/all` → retrieve all stored device inventories
+  * `GET /inventory?deviceId=DEVICE_UUID` → retrieve stored inventory for a specific device
+  * `GET /inventory/all` → retrieve all stored inventories
 * Uses shared DTOs for consistent data representation
 
 ---
@@ -75,109 +74,96 @@ inventory-poc/
 ## Flow Diagram
 
 ```
-[ Swift App / Admin Portal ]
-             |
-             | POST /inventory/fetch?deviceId=UUID
-             v
-   [ InventoryController.fetchInventory() ]
-             |
-             | calls
-             v
-       [ InventoryService.fetchAndStore() ]
-             |
-             | calls
-             v
-       [ MDM Client Service (mock) ]
-             |  (returns InventoryDto)
-             v
-   [ InventoryRepository (in-memory) ]
-             | stores InventoryDto
-             v
-[ InventoryController responds with InventoryDto ]
+[Client / Admin Portal]
+          |
+          | POST /inventory/fetch?deviceId=UUID
+          v
+[InventoryController.fetchInventory()]
+          |
+          | calls
+          v
+[InventoryService.fetchAndStore()]
+          |
+          | calls
+          v
+[MDM Client Service (mock)]
+          |
+          | returns InventoryDto
+          v
+[InventoryRepoDefault (in-memory)]
+          |
+          | stores InventoryDto
+          v
+[InventoryController responds with InventoryDto]
 
-[ Swift App / Admin Portal ]
-             |
-             | GET /inventory?deviceId=UUID
-             v
-   [ InventoryController.getInventory() ]
-             |
-             | reads from repository
-             v
-[ InventoryDto returned ]
-
-[ Swift App / Admin Portal ]
-             |
-             | GET /inventory/all
-             v
-   [ InventoryController.getAllInventories() ]
-             |
-             | reads all from repository
-             v
-[ List<InventoryDto> returned ]
+GET endpoints read stored data similarly:
+- /inventory?deviceId=UUID → single device
+- /inventory/all → all fetched devices
 ```
 
 ---
 
 ## How to Run
 
-1. Start **MDM Client Service**:
+1. Start the application:
 
 ```bash
-./gradlew :mdm-client-service:bootRun
+./gradlew bootRun
 ```
 
-2. Start **Inventory Service**:
+2. Test endpoints:
 
-```bash
-./gradlew :inventory-service:bootRun
-```
-
-3. Test the endpoints:
-
-* **Fetch inventory for a device**
+* Fetch inventory for a device
 
 ```bash
 curl -X POST "http://localhost:8080/inventory/fetch?deviceId=123456"
 ```
 
-* **Get inventory for a single device**
+* Retrieve inventory for a single device
 
 ```bash
 curl "http://localhost:8080/inventory?deviceId=123456"
 ```
 
-* **Get inventory for all devices**
+* Retrieve all stored devices
 
 ```bash
 curl "http://localhost:8080/inventory/all"
+```
+
+* Fetch multiple devices to populate `/all`
+
+```bash
+curl -X POST "http://localhost:8080/inventory/fetch?deviceId=ABCDEF"
+curl -X POST "http://localhost:8080/inventory/fetch?deviceId=XYZ123"
 ```
 
 ---
 
 ## Notes
 
-* Repository is **in-memory** for PoC purposes; can be replaced with H2 or another DB for persistence.
+* Repository is in-memory (`ConcurrentHashMap`) for PoC purposes; can be replaced with H2 or other databases.
 * Shared DTOs ensure consistency across services.
-* Fetching is **device-based**; `/all` returns all previously fetched inventories.
-* `/fetch` is a POST endpoint because it triggers an external call and updates the repository.
+* `/fetch` is POST because it triggers an external fetch and updates storage.
 * `/inventory` and `/all` are GET endpoints for reading stored data only.
+* `/all` shows **all devices that have been fetched**, not all possible devices.
 
 ---
 
 ## Future Improvements
 
-* Add **persistent storage** (H2, PostgreSQL, etc.)
-* Add **batch fetch** for multiple devices at once
-* Add **error handling and retries** for MDM Client calls
-* Introduce **asynchronous fetch** with timeouts and background processing
-* Add **integration tests** for end-to-end validation
-* Extend DTOs to include more detailed inventory information (e.g., installed profiles, device type)
-* Add **logging and monitoring** for microservice interactions
-* Consider **security/authentication** for the endpoints
-* Provide **OpenAPI / Swagger documentation** for easy testing
+* Replace in-memory storage with persistent DB (H2/PostgreSQL)
+* Batch fetch multiple devices at once
+* Add asynchronous fetch and background processing
+* Add retry logic and error handling for MDM Client calls
+* Integration tests for end-to-end validation
+* Extend DTOs for richer inventory data (profiles, device type, etc.)
+* Logging and monitoring for microservice interactions
+* Endpoint security and authentication
+* OpenAPI/Swagger documentation for testing and exploration
 
 ---
 
 ## License
 
-MIT License. Free to use for internal PoC and learning purposes.
+MIT License. Free for internal PoC and learning purposes.
